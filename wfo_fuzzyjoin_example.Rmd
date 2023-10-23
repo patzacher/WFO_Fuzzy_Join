@@ -1,0 +1,239 @@
+---
+title: "WFO FuzzyJoin Example"
+author: "P. Zacher"
+date: "2023-10-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Install new packages
+```{r}
+install.packages('iterors', dependencies=TRUE)
+```
+
+## Load packages
+```{r}
+library(dplyr)
+library(tidytext)
+library(tm)
+library(fuzzyjoin)
+library(WorldFlora)
+library(data.table)
+library(stringr)
+library(parallel)
+library(doParallel)
+library(foreach)
+library(iterors)
+```
+
+## Load data
+
+```{r}
+scientific_name <- read.csv("WFOspecies2023-08-22.csv") # Longest name is 6 words
+example_data <- read.csv("example_data.csv")
+WFO.download() # Run once to download WFO data
+WFO.remember()
+```
+
+## Subset data frames for troubleshooting
+```{r}
+# Subset scientific_name, example_data, and WFO.data for troubleshooting
+scientific_name_subset <- slice(scientific_name, 1:100)
+example_data_subset <- slice(example_data, 1:5)
+WFO.data.subset <- slice(WFO.data, 1:1000000)
+
+# Convert all scientific names to lowercase
+scientific_name_subset <- scientific_name_subset %>%
+  mutate_all(tolower)
+```
+
+## Clean abstracts
+```{r}
+# Create a Corpus from the example abstracts (from tm package)
+corpus <- Corpus(VectorSource(example_data_subset$abstract_l))
+
+# Preprocess the corpus (remove punctuation, convert to lowercase, remove numbers)
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeNumbers)
+
+# Load stop words (e.g., "a", "the", "is", "are", etc.) and remove them from 
+# abstracts.
+data("stopwords")
+corpus <- tm_map(corpus, removeWords, stopwords("en"))
+
+# Convert the processed corpus back to a character vector
+processed_abstracts <- sapply(corpus, as.character)
+
+# Add the processed_abstracts column to example_data_subset
+example_data_subset$processed_abstracts <- processed_abstracts
+
+# Tokenize the abstracts into n-grams of 6 words (tidytext package)
+tokenized_ngrams <- example_data_subset %>% 
+  unnest_tokens(ngram, processed_abstracts, token = "ngrams", n = 4)
+
+# Create a subset for troubleshooting
+tokenized_ngrams_subset <- slice(tokenized_ngrams, 1:300)
+
+```
+
+## Option 1:
+### Fuzzy join using WFO.match.fuzzyjoin without parallel processing
+```{r}
+cuts <- cut(c(1:nrow(tokenized_ngrams_subset)), breaks = 2, labels = FALSE)
+cut.i <- sort(unique(cuts))
+
+for (i in 1:length(cut.i)) {
+  cat(paste("Cut: ", i, "\n"))
+  
+  tokenized_ngrams_subset_i <-
+    WFO.one(
+      WFO.match.fuzzyjoin(
+        spec.data = tokenized_ngrams_subset[cuts == cut.i[i],],
+        WFO.data = WFO.data.subset,
+        spec.name = "ngram",
+        fuzzydist.max = 3
+      ),
+      verbose = FALSE
+    )
+  
+  if (i == 1) {
+    tokenized_ngrams_subset_WFO <- tokenized_ngrams_subset_i
+  } else{
+    tokenized_ngrams_subset_WFO <- rbind(tokenized_ngrams_subset_WFO, tokenized_ngrams_subset_i)
+  }
+}
+```
+
+## Option 2:
+### Fuzzy join using WFO.match.fuzzyjoin with parallel processing
+```{r}
+# How many cores do you have available? 
+detectCores()
+
+# Set the number of cores to use. Probably best to start with 1/2 of the cores
+# available and scale up.
+num_cores <- 5
+
+# Create a cluster for parallel processing
+cl <- makeCluster(num_cores)
+registerDoParallel(cl)
+
+# Break data into parts
+cuts <- cut(c(1:nrow(tokenized_ngrams_subset)), breaks=2, labels=FALSE)
+cut_i <- sort(unique(cuts))
+
+system.time({
+# Perform parallel fuzzy join using WFO.match.fuzzyjoin
+tokenized_ngrams_WFO_parallel <-
+  foreach(
+    i = 1:length(cut_i),
+    .combine = rbind,
+    .packages = c("dplyr", "WorldFlora")
+  ) %dopar% {
+    WFO.one(
+      WFO.match.fuzzyjoin(
+        spec.data = tokenized_ngrams_subset[cuts == cut_i[i],],
+        WFO.data = WFO.data.subset,
+        spec.name = "ngram",
+        fuzzydist.max = 3
+      ),
+      verbose = FALSE
+    )
+  }
+})
+# Stop the parallel cluster
+stopCluster(cl)
+```
+
+## Option 2.1:
+### Fuzzy join using WFO.match.fuzzyjoin with parallel processing and chunked data frames
+
+First define a function `tokenized_ngrams_WFO_parallel_fn` that wraps the
+parallel processing code from Option 2 into a single call. Inputs to this
+function are `i_chunk_df`, a chunked ngram data frame (explained below) and
+`WFO_data`.
+```{r}
+# Create a function to process each chunked ngram data frame. The `breaks`
+# argument can be modified to suit your setup. I set it to the same value as the
+# number of cores I allocated for the task (e.g., 5) and saw faster performance
+# compared to a lower number of breaks (e.g., 2).
+tokenized_ngrams_WFO_parallel_fn <- function(i_chunk_df, WFO_data) {
+  
+  cuts <- cut(c(1:nrow(i_chunk_df)), breaks = 5, labels = FALSE) # Cut each chunked data frame into smaller chunks for each worker to process
+  cut_i <- sort(unique(cuts)) # How many unique cuts are there?
+  
+  tokenized_ngrams_WFO_parallel_i <-
+    foreach(
+      i = 1:length(cut_i),
+      .combine = rbind,
+      .packages = c("dplyr", "WorldFlora")
+    ) %dopar% {
+      WFO.one(
+        WFO.match.fuzzyjoin(
+          spec.data = i_chunk_df[cuts == cut_i[i],],
+          WFO.data = WFO_data,
+          spec.name = "ngram",
+          fuzzydist.max = 3
+        ),
+        verbose = FALSE
+      )
+    }
+}
+```
+
+We are going to break down the `tokenized_ngrams` data frame into smaller
+chunks. Each of these chunks will then be fed into
+`tokenized_ngrams_WFO_parallel_fn` that will complete the WFO.match.fuzzyjoin
+using parallel processing. The output is `tokenized_ngrams_WFO_parallel`.
+```{r}
+# Turn the ngrams data frame into an `iteror` object. This makes it easier to
+# iterate through a data frame, rather than chunking manually. Chunk size can be
+# changed to suit your needs by changing the argument `chunkSize`. It will
+# likely require some testing to find the right size.
+i_chunk_df <- iteror(tokenized_ngrams_subset, by="row", chunkSize=100)
+
+# How many cores do you have available? 
+detectCores()
+
+# Set the number of cores to use. Probably best to start with 1/2 of the cores
+# available and scale up.
+num_cores <- 5
+
+# Create a cluster for parallel processing
+cl <- makeCluster(num_cores)
+registerDoParallel(cl)
+
+# Process ngrams
+tokenized_ngrams_WFO_parallel <-
+  foreach(
+    i = i_chunk_df,
+    .combine = rbind,
+    .packages = c("dplyr", "WorldFlora")
+  ) %do% {
+    tokenized_ngrams_WFO_parallel_fn(i_chunk_df = i, WFO_data = WFO.data)
+  }
+
+# Stop the cluster when finished.
+stopCluster(cl)
+```
+
+## Option 3:
+### Fuzzy join using `fuzzyjoin`
+```{r}
+# Perform fuzzy join based on approximate string matching (fuzzyjoin package)
+fuzzy_join_df <- stringdist_left_join(tokenized_ngrams, scientific_name_subset,
+                                      by = c("ngram" = "scientificName"), 
+                                      max_dist = 5, method = "lv")
+
+# Filter to remove scientific name non-matches and only keep unique names (dplyr)
+filtered_df <- fuzzy_join_df %>% 
+  group_by(uid) %>% 
+  distinct(scientificName, .keep_all = TRUE) %>% 
+  filter(!is.na(scientificName))
+
+```
+
