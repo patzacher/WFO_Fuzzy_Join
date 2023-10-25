@@ -13,5 +13,4 @@ Here we implement two related techniques for finding name matches:
 2) Fuzzy joins with large data sets and the complete taxonomic backbone consisting of ~1.5 observations
    using parallel processing.
 
-If you are unfamiliar with WorldFlora and its associated package, the best place to start is the [WFO CRAN]
-(https://cran.r-project.org/web/packages/WorldFlora/WorldFlora.pdf)
+If you are unfamiliar with WorldFlora and its associated package, the best place to start is the [WFO CRAN](https://cran.r-project.org/web/packages/WorldFlora/WorldFlora.pdf)
