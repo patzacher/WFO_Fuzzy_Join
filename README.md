@@ -1,6 +1,6 @@
 # WorldFlora Online (WFO) Fuzzy Join
-
-https://cran.r-project.org/web/packages/WorldFlora/WorldFlora.pdf
+-------------------------------------
+## Overview
 
 A repository for R code that uses a fuzzy join operation to find scientific plant name matches in abstracts
 of scientific articles.
@@ -12,3 +12,5 @@ Here we implement two related techniques for finding name matches:
 1) Fuzzy joins with small data sets and only a subset of scientific names
 2) Fuzzy joins with large data sets and the complete taxonomic backbone consisting of ~1.5 observations
    using parallel processing.
+
+https://cran.r-project.org/web/packages/WorldFlora/WorldFlora.pdf
