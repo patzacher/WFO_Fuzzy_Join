@@ -16,3 +16,9 @@ Here we implement two related techniques for finding name matches using WFO.matc
 2) Fuzzy joins with large data sets and the complete taxonomic backbone consisting of ~1.5 observations
    using parallel processing and data frame chunking.
 
+Text preprocessing is completed before completing the matching operations. Preprocessing aids the matching 
+process by reducing the size of the data set, resulting in fewer operations, and removing text that is not
+likely to contain words of interest. Specifically, we use the [tm](https://cran.r-project.org/web/packages/tm/index.html) package
+to remove punctuation and numbers, and convert all text to lowercase. We then remove stop words (e.g., "is",
+"are", "the"). Lastly, the abstracts are converted to n-grams (e.g., word chunks) of a length specified by
+the user (e.g., 4-word chunks).
