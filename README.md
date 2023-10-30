@@ -54,24 +54,24 @@ the user (e.g., 4-word chunks) using the unnest_tokens function from the tidytex
 ### Fuzzy Join Options
 Three different approaches for fuzzy joins are demonstrated:
 
-Option 1: Fuzzy join using [WFO.match.fuzzyjoin](https://cran.r-project.org/web/packages/WorldFlora/WorldFlora.pdf) without parallel processing
+  Option 1: Fuzzy join using [WFO.match.fuzzyjoin](https://cran.r-project.org/web/packages/WorldFlora/WorldFlora.pdf) without parallel processing
 
-Tokenized n-grams are processed for fuzzy joins with the WFO dataset.
-
-
-Option 2: Fuzzy join using [WFO.match.fuzzyjoin](https://cran.r-project.org/web/packages/WorldFlora/WorldFlora.pdf) with parallel processing
-
-Utilizes parallel processing to perform fuzzy joins with the WFO dataset.
+    Tokenized n-grams are processed for fuzzy joins with the WFO dataset.
 
 
-Option 2.1: Fuzzy join using [WFO.match.fuzzyjoin](https://cran.r-project.org/web/packages/WorldFlora/WorldFlora.pdf) with parallel processing and chunked data frames
+  Option 2: Fuzzy join using [WFO.match.fuzzyjoin](https://cran.r-project.org/web/packages/WorldFlora/WorldFlora.pdf) with parallel processing
 
-Splits the data frame into chunks for parallel processing to enhance performance.
+    Utilizes parallel processing to perform fuzzy joins with the WFO dataset.
 
 
-Option 3: Fuzzy join using [fuzzyjoin](https://cran.r-project.org/web/packages/fuzzyjoin/index.html)
+  Option 2.1: Fuzzy join using [WFO.match.fuzzyjoin](https://cran.r-project.org/web/packages/WorldFlora/WorldFlora.pdf) with parallel processing and chunked data frames
 
-Performs fuzzy join based on approximate string matching using the stringdist_left_join function.
+    Splits the data frame into chunks for parallel processing to enhance performance.
+
+
+  Option 3: Fuzzy join using [fuzzyjoin](https://cran.r-project.org/web/packages/fuzzyjoin/index.html)
+
+    Performs fuzzy join based on approximate string matching using the stringdist_left_join function.
 
 
 Each section provides code snippets and detailed explanations on how the fuzzy joins are executed and the rationale behind each method.
