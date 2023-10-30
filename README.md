@@ -39,7 +39,7 @@ The packages can be installed in R using the install.packages("package_name") co
 
 ## Usage
 ### Loading Data
-Load the `scientific_name` and `example_data` CSV files.
+Load the `wfo_species_example` and `example_data` CSV files.
 The WFO.download() function retrieves the World Flora Online data, which needs to be run once.
 Data frames are subset for troubleshooting purposes and all scientific names are converted to lowercase.
 
