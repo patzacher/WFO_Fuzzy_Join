@@ -14,15 +14,25 @@ comprehensive and authoritative list of vascular plants.
 To use this code, ensure you have the required R packages installed. The essential packages include:
 
 dplyr
+
 tidytext
+
 tm
+
 fuzzyjoin
+
 WorldFlora
+
 data.table
+
 stringr
+
 parallel
+
 doParallel
+
 foreach
+
 iterators
 
 The packages can be installed in R using the install.packages("package_name") command.
